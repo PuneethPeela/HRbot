@@ -28,7 +28,17 @@ from langchain.prompts import PromptTemplate
 
 load_dotenv()
 
-app = FastAPI(title="HRBot API")
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def lifespan(app):
+    # Startup: create tables
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    yield
+    # Shutdown: cleanup
+
+app = FastAPI(title="HRBot API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -37,12 +47,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Initialize DB asynchronously
-@app.on_event("startup")
-async def startup():
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
 
 # Dependency
 async def get_db():
@@ -91,16 +95,26 @@ async def async_classify_topic(query: str) -> str:
         return "LEAVE"
     if any(word in query for word in ["join", "onboard", "document", "probation", "first day"]):
         return "ONBOARDING"
-    if any(word in query for word in ["conduct", "dress", "posh", "travel", "wfh", "policy"]):
-        return "POLICY"
     if any(word in query for word in ["insurance", "health", "gratuity", "nps", "meal", "stock", "benefits"]):
         return "BENEFITS"
+    if any(word in query for word in ["conduct", "dress", "posh", "travel", "wfh", "policy", "remote", "home", "hybrid"]):
+        return "POLICY"
     return "GENERAL"
 
 async def async_is_sensitive(query: str) -> bool:
     # Simulating an async compliance agent
     await asyncio.sleep(0.01)
-    sensitive_words = ["harassment", "termination", "sue", "legal", "lawyer", "quit", "resign", "dispute", "discriminated"]
+    sensitive_words = [
+        "harass", "harassment", "harassed", "harassing",
+        "terminat", "termination", "terminated",
+        "sue", "sued", "suing",
+        "legal", "lawyer", "attorney",
+        "quit", "resign", "resigned", "resignation",
+        "dispute", "disputed", "grievance",
+        "discriminat", "discriminated", "discrimination",
+        "hostile", "threat", "bully", "bullied", "bullying",
+        "retaliat", "retaliation", "whistleblow",
+    ]
     return any(word in query.lower() for word in sensitive_words)
 
 # Mock Slack/Email Webhook
