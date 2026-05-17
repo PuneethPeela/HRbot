@@ -12,7 +12,9 @@ from dotenv import load_dotenv
 
 # Database
 from sqlalchemy.orm import Session
-from database import SessionLocal, Ticket, DocumentLog
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from database import AsyncSessionLocal, Ticket, DocumentLog, engine, Base
 from security import verify_firebase_token
 
 # Langchain and RAG
@@ -36,13 +38,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Initialize DB asynchronously
+@app.on_event("startup")
+async def startup():
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
 # Dependency
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+async def get_db():
+    async with AsyncSessionLocal() as session:
+        yield session
 
 class ChatRequest(BaseModel):
     query: str
@@ -105,7 +110,7 @@ def trigger_escalation_webhook(ticket_id: str, topic: str, employee_name: str, p
     print(f"[WEBHOOK FIRED] 🚀 Slack Alert: New {priority.upper()} Priority Escalation from {employee_name} regarding {topic}. Ticket ID: {ticket_id}")
 
 @app.post("/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db), user: dict = Depends(verify_firebase_token)):
+async def chat(request: ChatRequest, background_tasks: BackgroundTasks, db: AsyncSession = Depends(get_db), user: dict = Depends(verify_firebase_token)):
     
     # 1. Execute multiple agents SIMULTANEOUSLY for high-performance orchestration
     topic_task = asyncio.create_task(async_classify_topic(request.query))
@@ -191,7 +196,7 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, db: Sess
             description=request.query
         )
         db.add(db_ticket)
-        db.commit()
+        await db.commit()
         
         # Trigger async webhook notification
         background_tasks.add_task(trigger_escalation_webhook, ticket_id, topic, request.employee_name, priority)
@@ -206,7 +211,7 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, db: Sess
     )
 
 @app.post("/upload")
-async def upload_document(file: UploadFile = File(...), db: Session = Depends(get_db), user: dict = Depends(verify_firebase_token)):
+async def upload_document(file: UploadFile = File(...), db: AsyncSession = Depends(get_db), user: dict = Depends(verify_firebase_token)):
     # Save uploaded file temporarily
     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
         tmp.write(await file.read())
@@ -229,9 +234,12 @@ async def upload_document(file: UploadFile = File(...), db: Session = Depends(ge
         vectorstore.persist()
         
         # Log to DB
-        doc_log = DocumentLog(filename=file.filename, chunks_indexed=len(chunks))
+        doc_log = DocumentLog(
+            filename=file.filename,
+            chunks_indexed=len(chunks)
+        )
         db.add(doc_log)
-        db.commit()
+        await db.commit()
         
         return {"filename": file.filename, "status": "processed", "chunks_indexed": len(chunks)}
     except Exception as e:
@@ -240,8 +248,9 @@ async def upload_document(file: UploadFile = File(...), db: Session = Depends(ge
         os.remove(tmp_path)
 
 @app.get("/tickets")
-async def get_tickets(db: Session = Depends(get_db), user: dict = Depends(verify_firebase_token)):
-    tickets = db.query(Ticket).order_by(Ticket.created_at.desc()).all()
+async def get_tickets(db: AsyncSession = Depends(get_db), user: dict = Depends(verify_firebase_token)):
+    result = await db.execute(select(Ticket).order_by(Ticket.created_at.desc()))
+    tickets = result.scalars().all()
     return tickets
 
 @app.get("/config")

@@ -1,25 +1,29 @@
-from sqlalchemy import create_engine, Column, Integer, String, Boolean, DateTime
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy import Column, Integer, String, Boolean, DateTime
 from datetime import datetime
 import os
 from dotenv import load_dotenv
 
 load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./hrbot.db")
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./hrbot.db")
 
-if DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+# Automatically switch to asyncpg if postgres is detected
+if DATABASE_URL.startswith("postgres://") or DATABASE_URL.startswith("postgresql://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+asyncpg://", 1)
+    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
 
 if DATABASE_URL.startswith("sqlite"):
-    engine = create_engine(
+    engine = create_async_engine(
         DATABASE_URL, connect_args={"check_same_thread": False}
     )
 else:
-    engine = create_engine(DATABASE_URL)
+    engine = create_async_engine(DATABASE_URL)
 
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+AsyncSessionLocal = sessionmaker(
+    bind=engine, class_=AsyncSession, expire_on_commit=False
+)
 
 Base = declarative_base()
 
@@ -42,4 +46,3 @@ class DocumentLog(Base):
     chunks_indexed = Column(Integer)
     uploaded_at = Column(DateTime, default=datetime.utcnow)
 
-Base.metadata.create_all(bind=engine)
