@@ -44,59 +44,104 @@ function App() {
 
   if (!user || !acceptedTerms) {
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
+      <div className="relative min-h-screen bg-brand-dark flex flex-col items-center justify-center p-4 overflow-hidden font-display">
+        {/* Animated Background Gradients */}
+        <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-brand-accent rounded-full mix-blend-screen filter blur-[150px] opacity-30 animate-pulse-glow"></div>
+        <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-brand-glow rounded-full mix-blend-screen filter blur-[150px] opacity-30 animate-pulse-glow" style={{ animationDelay: '2s' }}></div>
+
+        {/* Infinite Carousel Background Element */}
+        <div className="absolute top-10 left-0 w-full overflow-hidden opacity-20 pointer-events-none">
+          <div className="flex w-[200%] animate-infinite-scroll">
+            {['RAG Architecture', 'Multi-Agent Routing', 'Compliance Firewall', 'Automated Escalation', 'Vector Search', 'Async FastAPI', 'Firebase Auth'].map((text, i) => (
+              <div key={i} className="text-4xl font-bold text-white px-8 whitespace-nowrap">
+                {text} •
+              </div>
+            ))}
+            {['RAG Architecture', 'Multi-Agent Routing', 'Compliance Firewall', 'Automated Escalation', 'Vector Search', 'Async FastAPI', 'Firebase Auth'].map((text, i) => (
+              <div key={`dup-${i}`} className="text-4xl font-bold text-white px-8 whitespace-nowrap">
+                {text} •
+              </div>
+            ))}
+          </div>
+        </div>
+
         <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="max-w-2xl w-full bg-white rounded-3xl shadow-xl overflow-hidden flex flex-col md:flex-row"
+          initial={{ opacity: 0, scale: 0.95, y: 30 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+          className="relative max-w-4xl w-full bg-white/10 backdrop-blur-xl border border-white/20 rounded-[2rem] shadow-glass overflow-hidden flex flex-col md:flex-row z-10"
         >
-          <div className="bg-hr-900 text-white p-8 md:w-1/2 flex flex-col justify-center">
-            <Bot size={48} className="mb-6 opacity-90" />
-            <h1 className="text-3xl font-bold mb-2">Promtal HRBot</h1>
-            <p className="text-hr-100 text-sm">
-              Instant HR support, powered by RAG and isolated tenant models.
+          {/* Left Hero - Glassmorphism */}
+          <div className="relative p-12 md:w-1/2 flex flex-col justify-center overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-brand-accent/20 to-brand-glow/20 mix-blend-overlay"></div>
+            <motion.div animate={{ y: [-10, 10, -10] }} transition={{ repeat: Infinity, duration: 6, ease: 'easeInOut' }}>
+              <Bot size={64} className="mb-8 text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.5)]" />
+            </motion.div>
+            <h1 className="text-4xl font-bold mb-4 text-white tracking-tight">Promtal HRBot</h1>
+            <p className="text-gray-300 text-lg font-light leading-relaxed mb-8">
+              The next-generation, AI-native HR Helpdesk. 
+              Powered by highly concurrent multi-agent architecture and rigorous compliance guardrails.
             </p>
+            <div className="flex gap-4">
+              <span className="px-4 py-1.5 bg-white/10 rounded-full text-xs text-white border border-white/10 backdrop-blur-md">React + Vite</span>
+              <span className="px-4 py-1.5 bg-white/10 rounded-full text-xs text-white border border-white/10 backdrop-blur-md">FastAPI Async</span>
+              <span className="px-4 py-1.5 bg-white/10 rounded-full text-xs text-white border border-white/10 backdrop-blur-md">Agentic AI</span>
+            </div>
           </div>
           
-          <div className="p-8 md:w-1/2">
+          {/* Right Login/Terms */}
+          <div className="p-12 md:w-1/2 bg-white flex flex-col justify-center">
             {!user ? (
-              <form onSubmit={handleLogin} className="space-y-4">
-                <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                  <Lock size={20} className="text-hr-600"/> Secure Login
+              <form onSubmit={handleLogin} className="space-y-5">
+                <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-3 mb-6">
+                  <div className="p-2 bg-brand-accent/10 rounded-lg"><Lock size={24} className="text-brand-accent"/></div> 
+                  Secure Gateway
                 </h2>
-                {authError && <p className="text-xs text-red-500">{authError}</p>}
+                {authError && (
+                  <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-sm p-3 bg-red-50 text-red-600 rounded-lg border border-red-100">
+                    {authError}
+                  </motion.p>
+                )}
                 <div>
-                  <label className="text-xs font-semibold text-gray-500">Employee Email</label>
-                  <input type="email" value={loginEmail} onChange={e=>setLoginEmail(e.target.value)} required className="w-full border rounded-lg px-3 py-2 mt-1 focus:outline-hr-500" />
+                  <label className="text-sm font-semibold text-gray-600 mb-1 block">Employee Email</label>
+                  <input type="email" value={loginEmail} onChange={e=>setLoginEmail(e.target.value)} required 
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 mt-1 focus:outline-none focus:ring-2 focus:ring-brand-accent focus:bg-white transition-all" 
+                    placeholder="name@promtal.com"
+                  />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-gray-500">Password</label>
-                  <input type="password" value={loginPassword} onChange={e=>setLoginPassword(e.target.value)} required className="w-full border rounded-lg px-3 py-2 mt-1 focus:outline-hr-500" />
+                  <label className="text-sm font-semibold text-gray-600 mb-1 block">Authentication Key</label>
+                  <input type="password" value={loginPassword} onChange={e=>setLoginPassword(e.target.value)} required 
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 mt-1 focus:outline-none focus:ring-2 focus:ring-brand-accent focus:bg-white transition-all" 
+                    placeholder="••••••••"
+                  />
                 </div>
-                <button type="submit" className="w-full bg-hr-600 text-white py-3 rounded-xl font-bold hover:bg-hr-700 transition-colors">
-                  Login
+                <button type="submit" className="w-full bg-gradient-to-r from-brand-accent to-brand-glow text-white py-4 rounded-xl font-bold text-lg hover:shadow-neon hover:scale-[1.02] transition-all duration-300 mt-4">
+                  Authenticate
                 </button>
               </form>
             ) : (
-              <div>
-                <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-                  <ShieldAlert className="text-orange-500" /> Legal & Safety
+              <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
+                <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
+                  <div className="p-2 bg-orange-100 rounded-lg"><ShieldAlert className="text-orange-600" /></div>
+                  Compliance Check
                 </h2>
-                <div className="space-y-4 text-sm text-gray-600 mb-8">
-                  <p className="bg-orange-50 p-4 rounded-xl border border-orange-100 text-orange-800">
-                    <strong>Disclaimer:</strong> HRBot is an AI assistant and does not provide legal advice.
+                <div className="space-y-5 text-sm text-gray-600 mb-10">
+                  <p className="bg-orange-50 p-5 rounded-2xl border border-orange-200 text-orange-900 shadow-sm">
+                    <strong className="block mb-1 text-orange-950">Strict Liability Disclaimer:</strong> 
+                    HRBot operates as an automated routing and policy retrieval agent. It does not provide legally binding advice.
                   </p>
-                  <p>
-                    Your conversations are securely monitored for policy gaps. Sensitive queries (harassment, legal disputes) will be automatically escalated to human HR.
+                  <p className="px-2">
+                    All telemetry is strictly monitored. Queries matching harassment, legal disputes, or termination policies are routed to human operators via Webhooks within 120ms.
                   </p>
                 </div>
                 <button 
                   onClick={() => setAcceptedTerms(true)}
-                  className="w-full bg-gray-900 text-white py-3 rounded-xl font-bold hover:bg-black transition-colors"
+                  className="w-full bg-gray-900 text-white py-4 rounded-xl font-bold text-lg hover:bg-black hover:shadow-xl hover:-translate-y-1 transition-all duration-300"
                 >
-                  I Accept, Enter Workspace
+                  Acknowledge & Initialize
                 </button>
-              </div>
+              </motion.div>
             )}
           </div>
         </motion.div>
