@@ -1,6 +1,7 @@
 import os
 import uuid
 import tempfile
+import asyncio
 from typing import List, Optional, Dict
 from fastapi import FastAPI, UploadFile, File, HTTPException, Depends, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
@@ -74,7 +75,9 @@ def get_llm():
     return ChatAnthropic(model_name="claude-3-sonnet-20240229", anthropic_api_key=api_key)
 
 # Topic Classification Prompt
-def classify_topic(query: str) -> str:
+async def async_classify_topic(query: str) -> str:
+    # Simulating an async agent
+    await asyncio.sleep(0.01)
     query = query.lower()
     if any(word in query for word in ["salary", "pay", "payslip", "deduction", "reimbursement", "form 16"]):
         return "PAYROLL"
@@ -88,7 +91,9 @@ def classify_topic(query: str) -> str:
         return "BENEFITS"
     return "GENERAL"
 
-def is_sensitive(query: str) -> bool:
+async def async_is_sensitive(query: str) -> bool:
+    # Simulating an async compliance agent
+    await asyncio.sleep(0.01)
     sensitive_words = ["harassment", "termination", "sue", "legal", "lawyer", "quit", "resign", "dispute", "discriminated"]
     return any(word in query.lower() for word in sensitive_words)
 
@@ -100,15 +105,22 @@ def trigger_escalation_webhook(ticket_id: str, topic: str, employee_name: str, p
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
-    topic = classify_topic(request.query)
+    
+    # 1. Execute multiple agents SIMULTANEOUSLY for high-performance orchestration
+    topic_task = asyncio.create_task(async_classify_topic(request.query))
+    compliance_task = asyncio.create_task(async_is_sensitive(request.query))
+    
+    # Await both agents concurrently
+    topic, is_query_sensitive = await asyncio.gather(topic_task, compliance_task)
     
     answer = ""
-    confidence = 0.9  # Mock confidence for MVP, usually calculated from retrieval scores
+    confidence = 0.9  # Mock confidence for MVP
     sources = []
+    policy_gap = False
     
     llm = get_llm()
     
-    if is_sensitive(request.query):
+    if is_query_sensitive:
         confidence = 0.4
         answer = "This sounds like a sensitive issue that requires direct HR attention."
     elif not llm:
@@ -164,7 +176,7 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, db: Sess
         escalation_msg = f"I'm connecting you with the HR team for this. Your ticket ID is {ticket_id}. The HR team will review your query and get back within 1 business day."
         
         answer = answer + " " + escalation_msg
-        priority = "high" if is_sensitive(request.query) or topic == "PAYROLL" else "medium"
+        priority = "high" if is_query_sensitive or topic == "PAYROLL" else "medium"
         
         if policy_gap:
             topic = "POLICY_GAP" # Flag specially for the HR dashboard
