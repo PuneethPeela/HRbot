@@ -13,6 +13,7 @@ from dotenv import load_dotenv
 # Database
 from sqlalchemy.orm import Session
 from database import SessionLocal, Ticket, DocumentLog
+from security import verify_firebase_token
 
 # Langchain and RAG
 from langchain_community.document_loaders import PyPDFLoader
@@ -104,7 +105,7 @@ def trigger_escalation_webhook(ticket_id: str, topic: str, employee_name: str, p
     print(f"[WEBHOOK FIRED] 🚀 Slack Alert: New {priority.upper()} Priority Escalation from {employee_name} regarding {topic}. Ticket ID: {ticket_id}")
 
 @app.post("/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+async def chat(request: ChatRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db), user: dict = Depends(verify_firebase_token)):
     
     # 1. Execute multiple agents SIMULTANEOUSLY for high-performance orchestration
     topic_task = asyncio.create_task(async_classify_topic(request.query))
@@ -205,7 +206,7 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, db: Sess
     )
 
 @app.post("/upload")
-async def upload_document(file: UploadFile = File(...), db: Session = Depends(get_db)):
+async def upload_document(file: UploadFile = File(...), db: Session = Depends(get_db), user: dict = Depends(verify_firebase_token)):
     # Save uploaded file temporarily
     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
         tmp.write(await file.read())
@@ -239,16 +240,16 @@ async def upload_document(file: UploadFile = File(...), db: Session = Depends(ge
         os.remove(tmp_path)
 
 @app.get("/tickets")
-async def get_tickets(db: Session = Depends(get_db)):
+async def get_tickets(db: Session = Depends(get_db), user: dict = Depends(verify_firebase_token)):
     tickets = db.query(Ticket).order_by(Ticket.created_at.desc()).all()
     return tickets
 
 @app.get("/config")
-async def get_config():
+async def get_config(user: dict = Depends(verify_firebase_token)):
     return app_config
 
 @app.post("/config")
-async def update_config(config: ConfigUpdate):
+async def update_config(config: ConfigUpdate, user: dict = Depends(verify_firebase_token)):
     app_config["confidence_threshold"] = config.confidence_threshold
     return app_config
 

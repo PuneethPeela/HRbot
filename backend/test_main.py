@@ -19,12 +19,12 @@ def test_sensitive_keyword_detection():
     assert is_sensitive("How many leaves do I get?") == False
 
 def test_get_config():
-    response = client.get("/config")
+    response = client.get("/config", headers={'Authorization': 'Bearer mock_token_for_testing'})
     assert response.status_code == 200
     assert "confidence_threshold" in response.json()
 
 def test_update_config():
-    response = client.post("/config", json={"confidence_threshold": 0.8})
+    response = client.post("/config", json={"confidence_threshold": 0.8}, headers={'Authorization': 'Bearer mock_token_for_testing'})
     assert response.status_code == 200
     assert response.json()["confidence_threshold"] == 0.8
 
@@ -34,7 +34,7 @@ def test_chat_offline_fallback():
         "query": "What is the policy on remote work?",
         "employee_id": "EMP001",
         "employee_name": "John Doe"
-    })
+    }, headers={'Authorization': 'Bearer mock_token_for_testing'})
     assert response.status_code == 200
     data = response.json()
     assert "answer" in data
